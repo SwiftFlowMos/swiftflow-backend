@@ -1,0 +1,207 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────
+// UTILISATEURS
+// ─────────────────────────────────────────────────────────
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  login        String   @unique
+  passwordHash String
+  nom          String
+  role         String   // ADMIN, SAISISSEUR, VALIDEUR_N1, VALIDEUR_N2, CONFORMITE, REGLEMENTAIRE, DIRECTION
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  payments  Payment[]
+  auditLogs AuditLog[]
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────────────────
+// ORDRES DE PAIEMENT
+// ─────────────────────────────────────────────────────────
+model Payment {
+  id              String    @id @default(uuid())
+  reference       String    @unique
+  status          String    @default("DRAFT")
+  // DRAFT, PENDING_VALIDATION, PENDING_N1, PENDING_N2,
+  // PENDING_CONFORMITE, PENDING_REGLEMENTAIRE,
+  // APPROVED, REJECTED, RETURNED, BLOCKED, INJECTED
+
+  // Donneur d'ordre
+  agenceCode      String?
+  clientRef       String?
+  clientNom       String?
+  clientAdresse   Json?
+  compteNum       String?
+  compteDevise    String?
+  plafond         Float?
+
+  // Montant & Devise
+  amount          Float
+  currency        String
+  valueDate       DateTime?
+  typeCours       String?
+  coursChange     String?
+  motif           String?
+  codeMotif       String?
+
+  // Nature du transfert
+  categorie       String?
+  typeTransfert   String?
+  domRef          String?
+  domBanque       String?
+  domDate         DateTime?
+
+  // Bénéficiaire
+  beneName        String
+  beneAdresse     Json?
+  beneCountry     String?
+  beneIBAN        String?
+  beneBIC         String?
+  beneBankName    String?
+
+  // Correspondante & Incoterms
+  correspondentBIC   String?
+  correspondentNom   String?
+  incoterm           String?
+
+  // Détails
+  referenceClient String?
+  charges         String?   @default("SHA")
+  details         String?
+
+  // Contrôles
+  amlStatus       String?   @default("PENDING")
+  amlMessage      String?
+  sanctionsStatus String?   @default("PENDING")
+
+  // Workflow
+  currentStep     Int       @default(0)
+  circuitId       String?
+
+  // Relations
+  createdById     String
+  createdBy       User      @relation(fields: [createdById], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  auditLogs       AuditLog[]
+
+  @@map("payments")
+}
+
+// ─────────────────────────────────────────────────────────
+// PISTE D'AUDIT (IMMUABLE)
+// ─────────────────────────────────────────────────────────
+model AuditLog {
+  id             String   @id @default(uuid())
+  paymentId      String
+  payment        Payment  @relation(fields: [paymentId], references: [id])
+  actorId        String?
+  actor          User?    @relation(fields: [actorId], references: [id])
+  actorName      String
+  action         String
+  // CREATED, SUBMITTED, AML_OK, AML_ALERT, AML_BLOCKED,
+  // APPROVED_N1, APPROVED_N2, APPROVED_CONFORMITE,
+  // REJECTED, RETURNED, DELEGATED, INJECTED
+  result         String?
+  comment        String?
+  previousStatus String?
+  newStatus      String?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────────────────
+// RÉFÉRENTIEL CLIENTS
+// ─────────────────────────────────────────────────────────
+model RefClient {
+  id        String   @id @default(uuid())
+  ref       String   @unique
+  nom       String
+  agence    String?
+  type      String?
+  adresse   Json?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  comptes   RefCompte[]
+
+  @@map("ref_clients")
+}
+
+// ─────────────────────────────────────────────────────────
+// RÉFÉRENTIEL COMPTES
+// ─────────────────────────────────────────────────────────
+model RefCompte {
+  id        String    @id @default(uuid())
+  num       String    @unique
+  clientRef String
+  client    RefClient @relation(fields: [clientRef], references: [ref])
+  agence    String?
+  devise    String
+  plafond   Float
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+
+  @@map("ref_comptes")
+}
+
+// ─────────────────────────────────────────────────────────
+// CONFIGURATION WORKFLOW
+// ─────────────────────────────────────────────────────────
+model WorkflowStep {
+  id              String   @id @default(uuid())
+  ordre           Int
+  nom             String
+  type            String   // MANUEL, AUTO, SEMI_AUTO
+  role            String?
+  systemeTiers    String?
+  timeoutHeures   Int      @default(24)
+  timeoutMs       Int      @default(8000)
+  retryMax        Int      @default(1)
+  timeoutAction   String   @default("ALERTE")
+  fallbackAction  String   @default("MANUAL")
+  isActive        Boolean  @default(true)
+  condAlways      Boolean  @default(true)
+  condAmountMin   Float    @default(0)
+  condAmountMax   Float    @default(0)
+  condCurrencies  String[] @default([])
+  condPrevResults String[] @default([])
+  routingPositif  Json     @default("{\"action\":\"NEXT\"}")
+  routingNegatif  Json     @default("{\"action\":\"PREVIOUS\"}")
+  routingAlerte   Json     @default("{\"action\":\"ESCALADE\"}")
+  createdAt       DateTime @default(now())
+
+  @@map("workflow_steps")
+}
+
+// ─────────────────────────────────────────────────────────
+// IDENTITÉ DE LA BANQUE
+// ─────────────────────────────────────────────────────────
+model BankConfig {
+  id         String   @id @default(uuid())
+  nom        String
+  bic        String
+  codeBanque String?
+  deviseRef  String   @default("MAD")
+  logo       String?
+  couleurs   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("bank_config")
+}
