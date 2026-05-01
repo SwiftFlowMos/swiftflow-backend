@@ -6,10 +6,11 @@ export class WorkflowService {
   constructor(private prisma: PrismaService) {}
 
   async getActiveSteps(amount?: number) {
-    const steps = await this.prisma.workflowStep.findMany({
-      where: { isActive: true },
-      orderBy: { ordre: 'asc' },
-    });
+    const steps = await this.prisma.$queryRaw`
+      SELECT * FROM workflow_steps 
+      WHERE "isActive" = true 
+      ORDER BY ordre ASC
+    ` as any[];
 
     if (!amount) return steps;
 
@@ -22,7 +23,9 @@ export class WorkflowService {
   }
 
   async getAllSteps() {
-    return this.prisma.workflowStep.findMany({ orderBy: { ordre: 'asc' } });
+    return this.prisma.$queryRaw`
+      SELECT * FROM workflow_steps ORDER BY ordre ASC
+    `;
   }
 
   async updateStep(id: string, data: any) {
