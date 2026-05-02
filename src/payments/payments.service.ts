@@ -183,6 +183,21 @@ export class PaymentsService {
     });
   }
 
+  // ── MES ORDRES ──
+async findMine(userId: string, status?: string) {
+  const where: any = { createdById: userId };
+  if (status) {
+    where.status = { in: status.split(',') };
+  }
+  return this.prisma.payment.findMany({
+    where,
+    include: {
+      createdBy: { select: { nom: true, role: true } },
+      auditLogs: { orderBy: { createdAt: 'asc' } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+}
   // ── DÉTAIL D'UN ORDRE ──
   async findOne(id: string) {
     const payment = await this.prisma.payment.findUnique({
