@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Param, Body, Request, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Patch, Param, Body, Request, UseGuards, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PaymentsService } from './payments.service';
@@ -65,4 +65,16 @@ export class PaymentsController {
   audit(@Param('id') id: string) {
     return this.paymentsService.getAuditLog(id);
   }
+
+  @Put(':id')
+@ApiOperation({ summary: 'Modifier un ordre DRAFT ou RETURNED' })
+update(@Param('id') id: string, @Body() dto: CreatePaymentDto, @Request() req) {
+  return this.paymentsService.update(id, dto, req.user.id);
+}
+
+@Delete(':id')
+@ApiOperation({ summary: 'Supprimer un brouillon' })
+remove(@Param('id') id: string, @Request() req) {
+  return this.paymentsService.remove(id, req.user.id);
+}
 }
