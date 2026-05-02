@@ -54,6 +54,12 @@ export class PaymentsController {
     return this.paymentsService.findPending(req.user);
   }
 
+  @Get('mine')
+@ApiOperation({ summary: 'Mes ordres — filtres par statut' })
+mine(@Request() req, @Query('status') status?: string) {
+  return this.paymentsService.findMine(req.user.id, status);
+}
+  
   @Get(':id')
   @ApiOperation({ summary: 'Détail d\'un ordre avec historique' })
   findOne(@Param('id') id: string) {
