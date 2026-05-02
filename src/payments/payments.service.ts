@@ -220,4 +220,72 @@ export class PaymentsService {
     if (blocked) return { status:'BLOCKED', message:'Match liste sanctions OFAC/UE — transfert bloque' };
     return { status:'OK', message:'Aucun match detecte — conforme' };
   }
+
+  // ── MODIFIER UN ORDRE DRAFT OU RETURNED ──
+async update(paymentId: string, dto: any, userId: string) {
+  const payment = await this.findOne(paymentId);
+  if (!['DRAFT', 'RETURNED'].includes(payment.status)) {
+    throw new Error('Seul un ordre en statut DRAFT ou RETURNED peut etre modifie');
+  }
+
+  const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+  const updated = await this.prisma.payment.update({
+    where: { id: paymentId },
+    data: {
+      agenceCode:       dto.agenceCode,
+      clientRef:        dto.clientRef,
+      clientNom:        dto.clientNom,
+      clientAdresse:    dto.clientAdresse,
+      compteNum:        dto.compteNum,
+      compteDevise:     dto.compteDevise,
+      plafond:          dto.plafond,
+      amount:           dto.amount,
+      currency:         dto.currency,
+      valueDate:        dto.valueDate ? new Date(dto.valueDate) : null,
+      typeCours:        dto.typeCours,
+      coursChange:      dto.coursChange,
+      motif:            dto.motif,
+      codeMotif:        dto.codeMotif,
+      categorie:        dto.categorie,
+      typeTransfert:    dto.typeTransfert,
+      domRef:           dto.domRef,
+      domBanque:        dto.domBanque,
+      domDate:          dto.domDate ? new Date(dto.domDate) : null,
+      beneName:         dto.beneName,
+      beneAdresse:      dto.beneAdresse,
+      beneCountry:      dto.beneCountry,
+      beneIBAN:         dto.beneIBAN,
+      beneBIC:          dto.beneBIC,
+      beneBankName:     dto.beneBankName,
+      correspondentBIC: dto.correspondentBIC,
+      incoterm:         dto.incoterm,
+      referenceClient:  dto.referenceClient,
+      charges:          dto.charges,
+      details:          dto.details,
+      status:           'DRAFT',
+      updatedAt:        new Date(),
+    },
+  });
+
+  await this.addAuditLog(
+    paymentId, userId, user.nom,
+    'UPDATED', null, payment.status, 'DRAFT', 'Ordre modifie par le saisisseur'
+  );
+
+  return updated;
+}
+
+// ── SUPPRIMER UN BROUILLON ──
+async remove(paymentId: string, userId: string) {
+  const payment = await this.findOne(paymentId);
+  if (payment.status !== 'DRAFT') {
+    throw new Error('Seul un ordre en statut DRAFT peut etre supprime');
+  }
+
+  await this.prisma.auditLog.deleteMany({ where: { paymentId } });
+  await this.prisma.payment.delete({ where: { id: paymentId } });
+
+  return { success: true, message: 'Ordre supprime avec succes' };
+}
 }
