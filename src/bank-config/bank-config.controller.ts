@@ -4,8 +4,6 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BankConfigService } from './bank-config.service';
 
 @ApiTags('Bank Config')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @Controller('bank-config')
 export class BankConfigController {
   constructor(private bankConfigService: BankConfigService) {}
@@ -15,6 +13,8 @@ export class BankConfigController {
     return this.bankConfigService.get();
   }
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @Put()
   update(@Body() data: any) {
     return this.bankConfigService.update(data);
