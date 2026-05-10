@@ -205,3 +205,38 @@ model BankConfig {
 
   @@map("bank_config")
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SYSTÈMES TIERS — Adaptateurs
+// ─────────────────────────────────────────────────────────────────────────────
+model SystemAdapter {
+  id                String   @id @default(uuid())
+  code              String   @unique
+  nom               String
+  description       String?
+  modeAppel         String   @default("REST")
+  urlEndpoint       String?
+  authType          String   @default("NONE")
+  authValue         String?
+  headers           Json?    @default("{}")
+  formatRequest     String   @default("JSON")
+  formatResponse    String   @default("JSON")
+  mappingRequest    Json?    @default("{}")
+  mappingResponse   Json?    @default("{\"resultField\":\"status\",\"positifValue\":\"OK\",\"negatifValue\":\"KO\",\"alerteValue\":\"ALERT\"}")
+  timeoutMs         Int      @default(8000)
+  retryMax          Int      @default(2)
+  timeoutAction     String   @default("ALERTE")
+  queueType         String?
+  queueUrl          String?
+  queueTopicSend    String?
+  queueTopicReceive String?
+  modeBouchon       Boolean  @default(true)
+  bouchonResultat   String   @default("POSITIF")
+  bouchonDelaiMs    Int      @default(1000)
+  bouchonMessage    String?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("system_adapters")
+}
