@@ -5,6 +5,7 @@ import { UsersModule } from './users/users.module';
 import { WorkflowModule } from './workflow/workflow.module';
 import { ReferentielsModule } from './referentiels/referentiels.module';
 import { BankConfigModule } from './bank-config/bank-config.module';
+import { SystemAdaptersModule } from './system-adapters/system-adapters.module';
 import { PrismaService } from './prisma.service';
 import { HealthController } from './health.controller';
 
@@ -16,6 +17,7 @@ import { HealthController } from './health.controller';
     WorkflowModule,
     ReferentielsModule,
     BankConfigModule,
+    SystemAdaptersModule,
   ],
   controllers: [HealthController],
   providers: [PrismaService],
