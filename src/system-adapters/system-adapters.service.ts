@@ -18,22 +18,32 @@ export class SystemAdaptersService {
     return results[0] || null;
   }
 
-  async update(id: string, data: any) {
-    const fields = Object.keys(data)
-      .filter(k => data[k] !== undefined)
-      .map(k => `"${k}" = '${typeof data[k] === 'object' ? JSON.stringify(data[k]) : data[k]}'`)
-      .join(', ');
+async update(id: string, data: any) {
+  const allowed = [
+    'modeAppel', 'urlEndpoint', 'authType', 'authValue', 'headers',
+    'formatRequest', 'formatResponse', 'mappingRequest', 'mappingResponse',
+    'timeoutMs', 'retryMax', 'timeoutAction', 'queueType', 'queueUrl',
+    'queueTopicSend', 'queueTopicReceive', 'modeBouchon', 'bouchonResultat',
+    'bouchonDelaiMs', 'bouchonMessage', 'isActive',
+  ];
+
+  for (const key of allowed) {
+    if (data[key] === undefined) continue;
+    const value = typeof data[key] === 'object' 
+      ? JSON.stringify(data[key]) 
+      : String(data[key]);
     
-    await this.prisma.$executeRaw`
-      UPDATE system_adapters 
-      SET ${fields}, "updatedAt" = NOW()
-      WHERE id = ${id}::uuid
-    `;
-    
-    return this.prisma.$queryRaw`
-      SELECT * FROM system_adapters WHERE id = ${id}::uuid LIMIT 1
-    `;
+    await this.prisma.$executeRawUnsafe(
+      `UPDATE system_adapters SET "${key}" = $1, "updatedAt" = NOW() WHERE id = $2::uuid`,
+      value, id
+    );
   }
+
+  const results = await this.prisma.$queryRaw`
+    SELECT * FROM system_adapters WHERE id = ${id}::uuid LIMIT 1
+  ` as any[];
+  return results[0];
+}
 
   // Exécuter un adaptateur (bouchon ou réel)
   async execute(code: string, payment: any): Promise<{
