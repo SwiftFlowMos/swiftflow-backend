@@ -19,6 +19,7 @@ export class SystemAdaptersService {
   }
 
 async update(id: string, data: any) {
+  const jsonbFields = ['headers', 'mappingRequest', 'mappingResponse'];
   const allowed = [
     'modeAppel', 'urlEndpoint', 'authType', 'authValue', 'headers',
     'formatRequest', 'formatResponse', 'mappingRequest', 'mappingResponse',
@@ -29,14 +30,22 @@ async update(id: string, data: any) {
 
   for (const key of allowed) {
     if (data[key] === undefined) continue;
-    const value = typeof data[key] === 'object' 
-      ? JSON.stringify(data[key]) 
-      : String(data[key]);
     
-    await this.prisma.$executeRawUnsafe(
-      `UPDATE system_adapters SET "${key}" = $1, "updatedAt" = NOW() WHERE id = $2::uuid`,
-      value, id
-    );
+    if (jsonbFields.includes(key)) {
+      const value = typeof data[key] === 'object' 
+        ? JSON.stringify(data[key]) 
+        : data[key];
+      await this.prisma.$executeRawUnsafe(
+        `UPDATE system_adapters SET "${key}" = $1::jsonb, "updatedAt" = NOW() WHERE id = $2::uuid`,
+        value, id
+      );
+    } else {
+      const value = String(data[key]);
+      await this.prisma.$executeRawUnsafe(
+        `UPDATE system_adapters SET "${key}" = $1, "updatedAt" = NOW() WHERE id = $2::uuid`,
+        value, id
+      );
+    }
   }
 
   const results = await this.prisma.$queryRaw`
