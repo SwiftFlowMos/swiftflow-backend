@@ -1,9 +1,9 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { WorkflowService } from '../workflow/workflow.service';
+import { SystemAdaptersService } from '../system-adapters/system-adapters.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 
-// Génère une référence unique
 function genRef(prefix = 'TRF'): string {
   const year = new Date().getFullYear();
   const rand = Math.floor(100000 + Math.random() * 900000);
@@ -15,6 +15,7 @@ export class PaymentsService {
   constructor(
     private prisma: PrismaService,
     private workflow: WorkflowService,
+    private systemAdapters: SystemAdaptersService,
   ) {}
 
   // ── CRÉER UN ORDRE ──
@@ -71,47 +72,93 @@ export class PaymentsService {
   }
 
   // ── SOUMETTRE AU WORKFLOW ──
-  async submit(paymentId: string, userId: string) {
-    const payment = await this.findOne(paymentId);
-    if (payment.status !== 'DRAFT') throw new ForbiddenException('Seul un ordre en statut DRAFT peut etre soumis');
-
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-
-    // Simuler le contrôle AML (AUTO step 1)
-    const amlResult = this.simulateAML(payment.beneName);
-
-    let newStatus = 'PENDING_VALIDATION';
-    let amlStatus = amlResult.status;
-
-    if (amlResult.status === 'BLOCKED') {
-      newStatus = 'BLOCKED';
-      await this.prisma.payment.update({ where:{id:paymentId}, data:{ status:'BLOCKED', amlStatus:'BLOCKED', amlMessage:amlResult.message } });
-      await this.addAuditLog(paymentId, userId, user.nom, 'AML_BLOCKED', 'NEGATIF', 'DRAFT', 'BLOCKED', amlResult.message);
-      return { status:'BLOCKED', message: amlResult.message };
-    }
-
-    // Déterminer la première étape manuelle
-    const steps = await this.workflow.getActiveSteps(payment.amount);
-    const firstManualStep = steps.find(s => s.type === 'MANUEL');
-    if (firstManualStep) {
-      newStatus = `PENDING_${firstManualStep.role.toUpperCase().replace(' ','_')}`;
-    }
-
-    await this.prisma.payment.update({
-      where: { id: paymentId },
-      data: { status: newStatus, amlStatus, amlMessage: amlResult.message, currentStep: 1 },
-    });
-
-    await this.addAuditLog(paymentId, userId, user.nom, 'SUBMITTED', null, 'DRAFT', newStatus, 'Ordre soumis au circuit de validation');
-    if (amlResult.status === 'ALERT') {
-      await this.addAuditLog(paymentId, 'SYSTEM', 'Systeme AML', 'AML_ALERT', 'ALERTE', newStatus, newStatus, amlResult.message);
-    } else {
-      await this.addAuditLog(paymentId, 'SYSTEM', 'Systeme AML', 'AML_OK', 'POSITIF', newStatus, newStatus, amlResult.message);
-    }
-
-    return this.findOne(paymentId);
+async submit(paymentId: string, userId: string) {
+  const payment = await this.findOne(paymentId);
+  if (payment.status !== 'DRAFT') {
+    throw new ForbiddenException('Seul un ordre en statut DRAFT peut etre soumis');
   }
 
+  const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+  // Récupérer les étapes actives du workflow
+  const steps = await this.workflow.getActiveSteps(payment.amount);
+  
+  let currentStatus = 'DRAFT';
+  let currentStep = 0;
+
+  // Exécuter les étapes AUTO en séquence
+  for (const step of steps) {
+    if (step.type !== 'AUTO') {
+      // Première étape MANUEL — on s'arrête ici
+      const role = step.role?.toUpperCase().replace(/ /g, '_') || 'VALIDATION';
+      currentStatus = `PENDING_${role}`;
+      currentStep = step.ordre;
+      break;
+    }
+
+    // Appel de l'adaptateur pour l'étape AUTO
+    currentStep = step.ordre;
+    const adapterCode = step.systemeTiers || step.nom.toUpperCase().replace(/ /g, '_');
+    
+    await this.addAuditLog(
+      paymentId, 'SYSTEM', 'Systeme',
+      `AUTO_STEP_${step.ordre}_START`, null,
+      currentStatus, currentStatus,
+      `Debut execution etape AUTO: ${step.nom}`
+    );
+
+    const result = await this.systemAdapters.execute(adapterCode, payment);
+
+    await this.addAuditLog(
+      paymentId, 'SYSTEM', `Systeme ${adapterCode}`,
+      `AUTO_STEP_${step.ordre}_${result.result}`, result.result,
+      currentStatus, currentStatus,
+      result.message
+    );
+
+    // Appliquer le routage selon le résultat
+    const routing = result.result === 'POSITIF' 
+      ? step.routingPositif 
+      : result.result === 'NEGATIF' 
+      ? step.routingNegatif 
+      : step.routingAlerte;
+
+    const action = (routing as any)?.action || 'NEXT';
+
+    if (action === 'BLOCK') {
+      currentStatus = 'BLOCKED';
+      await this.prisma.payment.update({
+        where: { id: paymentId },
+        data: { status: 'BLOCKED', currentStep, amlStatus: result.result, amlMessage: result.message },
+      });
+      await this.addAuditLog(paymentId, userId, user.nom, 'BLOCKED', 'NEGATIF', 'DRAFT', 'BLOCKED', result.message);
+      return this.findOne(paymentId);
+    }
+
+    if (action === 'NEXT') {
+      currentStatus = 'PENDING_NEXT';
+      continue;
+    }
+  }
+
+  // Si toutes les étapes AUTO sont passées et aucune étape MANUEL
+  if (currentStatus === 'PENDING_NEXT' || currentStatus === 'DRAFT') {
+    currentStatus = 'APPROVED';
+  }
+
+  await this.prisma.payment.update({
+    where: { id: paymentId },
+    data: { status: currentStatus, currentStep, amlStatus: 'OK', amlMessage: 'Controles automatiques passes' },
+  });
+
+  await this.addAuditLog(
+    paymentId, userId, user.nom,
+    'SUBMITTED', null, 'DRAFT', currentStatus,
+    'Ordre soumis au circuit de validation'
+  );
+
+  return this.findOne(paymentId);
+}
   // ── DÉCISION VALIDEUR ──
   async decide(paymentId: string, action: 'APPROVE'|'REJECT'|'RETURN', comment: string, user: any) {
     const payment = await this.findOne(paymentId);
@@ -229,12 +276,6 @@ async findMine(userId: string, status?: string) {
     });
   }
 
-  private simulateAML(beneName: string): { status: string; message: string } {
-    const upper = beneName.toUpperCase();
-    const blocked = ['IRAN','SYRIE','CUBA','COREE'].some(s => upper.includes(s));
-    if (blocked) return { status:'BLOCKED', message:'Match liste sanctions OFAC/UE — transfert bloque' };
-    return { status:'OK', message:'Aucun match detecte — conforme' };
-  }
 
   // ── MODIFIER UN ORDRE DRAFT OU RETURNED ──
 async update(paymentId: string, dto: any, userId: string) {
