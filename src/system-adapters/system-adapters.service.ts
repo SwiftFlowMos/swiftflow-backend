@@ -19,7 +19,10 @@ export class SystemAdaptersService {
   }
 
 async update(id: string, data: any) {
-  const jsonbFields = ['headers', 'mappingRequest', 'mappingResponse'];
+  const jsonbFields    = ['headers', 'mappingRequest', 'mappingResponse'];
+  const integerFields  = ['timeoutMs', 'retryMax', 'bouchonDelaiMs'];
+  const booleanFields  = ['modeBouchon', 'isActive'];
+  
   const allowed = [
     'modeAppel', 'urlEndpoint', 'authType', 'authValue', 'headers',
     'formatRequest', 'formatResponse', 'mappingRequest', 'mappingResponse',
@@ -30,20 +33,29 @@ async update(id: string, data: any) {
 
   for (const key of allowed) {
     if (data[key] === undefined) continue;
-    
+
     if (jsonbFields.includes(key)) {
-      const value = typeof data[key] === 'object' 
-        ? JSON.stringify(data[key]) 
+      const value = typeof data[key] === 'object'
+        ? JSON.stringify(data[key])
         : data[key];
       await this.prisma.$executeRawUnsafe(
         `UPDATE system_adapters SET "${key}" = $1::jsonb, "updatedAt" = NOW() WHERE id = $2::uuid`,
         value, id
       );
+    } else if (integerFields.includes(key)) {
+      await this.prisma.$executeRawUnsafe(
+        `UPDATE system_adapters SET "${key}" = $1::integer, "updatedAt" = NOW() WHERE id = $2::uuid`,
+        parseInt(data[key]) || 0, id
+      );
+    } else if (booleanFields.includes(key)) {
+      await this.prisma.$executeRawUnsafe(
+        `UPDATE system_adapters SET "${key}" = $1::boolean, "updatedAt" = NOW() WHERE id = $2::uuid`,
+        data[key] === true || data[key] === 'true', id
+      );
     } else {
-      const value = String(data[key]);
       await this.prisma.$executeRawUnsafe(
         `UPDATE system_adapters SET "${key}" = $1, "updatedAt" = NOW() WHERE id = $2::uuid`,
-        value, id
+        String(data[key] ?? ''), id
       );
     }
   }
