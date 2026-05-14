@@ -125,20 +125,67 @@ async submit(paymentId: string, userId: string) {
 
     const action = (routing as any)?.action || 'NEXT';
 
-    if (action === 'BLOCK') {
-      currentStatus = 'BLOCKED';
-      await this.prisma.payment.update({
-        where: { id: paymentId },
-        data: { status: 'BLOCKED', currentStep, amlStatus: result.result, amlMessage: result.message },
-      });
-      await this.addAuditLog(paymentId, userId, user.nom, 'BLOCKED', 'NEGATIF', 'DRAFT', 'BLOCKED', result.message);
-      return this.findOne(paymentId);
-    }
+   if (action === 'BLOCK') {
+  currentStatus = 'BLOCKED';
+  await this.prisma.payment.update({
+    where: { id: paymentId },
+    data: { 
+      status: 'BLOCKED', 
+      currentStep, 
+      amlStatus: result.result, 
+      amlMessage: result.message 
+    },
+  });
+  await this.addAuditLog(
+    paymentId, userId, user.nom,
+    'BLOCKED', 'NEGATIF', 'DRAFT', 'BLOCKED',
+    result.message
+  );
+  return this.findOne(paymentId);
+}
 
-    if (action === 'NEXT') {
-      currentStatus = 'PENDING_NEXT';
-      continue;
-    }
+if (action === 'PREVIOUS') {
+  // Si étape 1 ou pas d'étape précédente → retour au saisisseur
+  const prevStep = steps.find(s => s.ordre === step.ordre - 1);
+  if (!prevStep || step.ordre === 1) {
+    // Retour au saisisseur
+    await this.prisma.payment.update({
+      where: { id: paymentId },
+      data: { 
+        status: 'RETURNED', 
+        currentStep: 0,
+        amlStatus: result.result,
+        amlMessage: result.message,
+      },
+    });
+    await this.addAuditLog(
+      paymentId, 'SYSTEM', `Systeme ${adapterCode}`,
+      'RETURNED', 'NEGATIF', 'DRAFT', 'RETURNED',
+      `Retour automatique au saisisseur : ${result.message}`
+    );
+    return this.findOne(paymentId);
+  } else {
+    // Retour à l'étape précédente
+    const prevRole = prevStep.role?.toUpperCase().replace(/ /g, '_') || 'VALIDATION';
+    currentStatus = `PENDING_${prevRole}`;
+    currentStep = prevStep.ordre;
+    await this.prisma.payment.update({
+      where: { id: paymentId },
+      data: { status: currentStatus, currentStep },
+    });
+    await this.addAuditLog(
+      paymentId, 'SYSTEM', `Systeme ${adapterCode}`,
+      'RETURNED_TO_PREVIOUS', 'NEGATIF', 'DRAFT', currentStatus,
+      `Retour automatique a l etape precedente : ${result.message}`
+    );
+    return this.findOne(paymentId);
+  }
+}
+
+if (action === 'NEXT') {
+  currentStatus = 'PENDING_NEXT';
+  continue;
+}
   }
 
   // Si toutes les étapes AUTO sont passées et aucune étape MANUEL
