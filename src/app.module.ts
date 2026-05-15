@@ -6,6 +6,7 @@ import { WorkflowModule } from './workflow/workflow.module';
 import { ReferentielsModule } from './referentiels/referentiels.module';
 import { BankConfigModule } from './bank-config/bank-config.module';
 import { SystemAdaptersModule } from './system-adapters/system-adapters.module';
+import { ReferentielUsersModule } from './referentiel-users/referentiel-users.module';
 import { PrismaService } from './prisma.service';
 import { HealthController } from './health.controller';
 
@@ -18,6 +19,7 @@ import { HealthController } from './health.controller';
     ReferentielsModule,
     BankConfigModule,
     SystemAdaptersModule,
+    ReferentielUsersModule,
   ],
   controllers: [HealthController],
   providers: [PrismaService],
