@@ -6,20 +6,20 @@ export class ModulesService {
   constructor(private prisma: PrismaService) {}
 
   // ── MODULES ──
-  async getModules() {
-    return this.prisma.$queryRaw`
-      SELECT * FROM modules WHERE "isActive" = true ORDER BY ordre ASC
-    `;
-  }
+async getModules() {
+  return this.prisma.$queryRaw`
+    SELECT * FROM modules ORDER BY ordre ASC
+  `;
+}
 
   // ── TYPES PAR MODULE ──
-  async getTypesByModule(moduleCode: string) {
-    return this.prisma.$queryRaw`
-      SELECT * FROM module_types
-      WHERE "moduleCode" = ${moduleCode} AND "isActive" = true
-      ORDER BY ordre ASC
-    `;
-  }
+async getTypesByModule(moduleCode: string) {
+  return this.prisma.$queryRaw`
+    SELECT * FROM module_types
+    WHERE "moduleCode" = ${moduleCode}
+    ORDER BY ordre ASC
+  `;
+}
 
   // ── ÉVÉNEMENTS PAR MODULE ET TYPE ──
   async getEvenements(moduleCode?: string, typeCode?: string) {
