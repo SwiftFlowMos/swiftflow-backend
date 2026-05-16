@@ -115,8 +115,6 @@ async getTypesByModule(moduleCode: string) {
                        AND e.code = he."evenementCode"
       WHERE he."roleCode" = ${roleCode}
         AND (he."peutInitier" = true OR he."peutValider" = true)
-        AND m."isActive" = true
-        AND e."isActive" = true
       ORDER BY m.ordre ASC, mt.ordre ASC, e.ordre ASC
     ` as any[];
 
