@@ -101,22 +101,22 @@ async getTypesByModule(moduleCode: string) {
 
   // ── MODULES ACCESSIBLES PAR RÔLE ──
   async getModulesAccessibles(roleCode: string) {
-    const habilitations = await this.prisma.$queryRaw`
-      SELECT DISTINCT he."moduleCode", he."typeCode", he."evenementCode",
-             he."peutInitier", he."peutValider", he."peutAnnuler", he."peutModifier",
-             m.nom as "moduleNom", m.icone, m.couleur, m.ordre as "moduleOrdre",
-             mt.nom as "typeNom",
-             e.nom as "evenementNom", e.id as "evenementId", e."circuitId"
-      FROM habilitations_evenements he
-      JOIN modules m ON m.code = he."moduleCode"
-      JOIN module_types mt ON mt."moduleCode" = he."moduleCode" AND mt.code = he."typeCode"
-      JOIN evenements e ON e."moduleCode" = he."moduleCode"
-                       AND e."typeCode" = he."typeCode"
-                       AND e.code = he."evenementCode"
-      WHERE he."roleCode" = ${roleCode}
-        AND (he."peutInitier" = true OR he."peutValider" = true)
-      ORDER BY m.ordre ASC, mt.ordre ASC, e.ordre ASC
-    ` as any[];
+   const habilitations = await this.prisma.$queryRaw`
+  SELECT he."roleCode", he."moduleCode", he."typeCode", he."evenementCode",
+         he."peutInitier", he."peutValider", he."peutAnnuler", he."peutModifier",
+         m.nom as "moduleNom", m.icone, m.couleur, m.ordre as "moduleOrdre",
+         mt.nom as "typeNom", mt.ordre as "typeOrdre",
+         e.nom as "evenementNom", e.id as "evenementId", e."circuitId", e.ordre as "evenementOrdre"
+  FROM habilitations_evenements he
+  JOIN modules m ON m.code = he."moduleCode"
+  JOIN module_types mt ON mt."moduleCode" = he."moduleCode" AND mt.code = he."typeCode"
+  JOIN evenements e ON e."moduleCode" = he."moduleCode"
+                   AND e."typeCode" = he."typeCode"
+                   AND e.code = he."evenementCode"
+  WHERE he."roleCode" = ${roleCode}
+    AND (he."peutInitier" = true OR he."peutValider" = true)
+  ORDER BY m.ordre ASC, mt.ordre ASC, e.ordre ASC
+` as any[];
 
     // Structurer en arbre Module → Type → Événements
     const tree: any = {};
