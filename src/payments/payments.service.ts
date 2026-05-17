@@ -25,6 +25,7 @@ async create(dto: CreatePaymentDto, userId: string) {
   // Récupérer le circuitId depuis l'événement si moduleCode/typeCode/eventCode fournis
   let circuitId = dto.circuitId || null;
 if (!circuitId && dto.moduleCode && dto.typeCode && dto.eventCode) {
+    console.log('Recherche circuit pour:', dto.moduleCode, dto.typeCode, dto.eventCode);
     const events = await this.prisma.$queryRawUnsafe(`
       SELECT "circuitId" FROM evenements
       WHERE "moduleCode" = $1
@@ -32,8 +33,10 @@ if (!circuitId && dto.moduleCode && dto.typeCode && dto.eventCode) {
         AND code         = $3
       LIMIT 1
     `, dto.moduleCode, dto.typeCode, dto.eventCode) as any[];
+    console.log('Events trouvés:', events.length, events[0]);
     if (events.length > 0 && events[0].circuitId) {
       circuitId = events[0].circuitId;
+      console.log('CircuitId trouvé:', circuitId);
     }
   }
 
