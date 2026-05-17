@@ -58,7 +58,7 @@ async getCircuits(moduleCode?: string) {
   if (moduleCode) {
     return this.prisma.$queryRawUnsafe(`
       SELECT c.id, c.code, c.nom, c."moduleCode", c."typeCode", c."evenementCode", 
-             c.description, c."isActive", c."createdAt",
+             c.description, c."createdAt",
              CAST(COUNT(ws.id) AS INTEGER) as "nbEtapes"
       FROM circuits c
       LEFT JOIN workflow_steps ws ON ws."circuitId" = c.id
@@ -69,7 +69,7 @@ async getCircuits(moduleCode?: string) {
   }
   return this.prisma.$queryRawUnsafe(`
     SELECT c.id, c.code, c.nom, c."moduleCode", c."typeCode", c."evenementCode",
-           c.description, c."isActive", c."createdAt",
+           c.description, c."createdAt",
            CAST(COUNT(ws.id) AS INTEGER) as "nbEtapes"
     FROM circuits c
     LEFT JOIN workflow_steps ws ON ws."circuitId" = c.id
