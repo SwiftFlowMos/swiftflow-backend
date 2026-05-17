@@ -22,17 +22,17 @@ export class WorkflowService {
     });
   }
 
-  async getStepsByCircuit(circuitId: string, amount?: number) {
-  const steps = await this.prisma.$queryRaw`
+async getStepsByCircuit(circuitId: string, amount?: number) {
+  const steps = await this.prisma.$queryRawUnsafe(`
     SELECT * FROM workflow_steps 
-    WHERE "circuitId" = ${circuitId}::uuid
-    AND "isActive" = true
+    WHERE "circuitId" = $1::uuid
     ORDER BY ordre ASC
-  ` as any[];
+  `, circuitId) as any[];
 
   if (!amount) return steps;
 
   return steps.filter(step => {
+    if (!step.isActive) return true; // Garder les étapes désactivées pour affichage
     if (step.condAlways) return true;
     if (step.condAmountMin > 0 && amount < step.condAmountMin) return false;
     if (step.condAmountMax > 0 && amount > step.condAmountMax) return false;
