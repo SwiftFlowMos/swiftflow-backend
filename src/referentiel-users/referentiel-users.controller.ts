@@ -66,4 +66,8 @@ export class ReferentielUsersController {
   updateForceHabilitation(@Param('id') id: string, @Body() data: any) {
     return this.service.updateForceHabilitation(id, data);
   }
+  @Post('users')
+createUser(@Body() data: any) {
+  return this.service.createUser(data);
+}
 }
