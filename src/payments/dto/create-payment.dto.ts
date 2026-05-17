@@ -36,4 +36,8 @@ export class CreatePaymentDto {
   @ApiPropertyOptional() @IsOptional() @IsString() referenceClient?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() charges?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() details?: string;
+
+  @ApiPropertyOptional() @IsOptional() @IsString() moduleCode?: string;
+@ApiPropertyOptional() @IsOptional() @IsString() typeCode?: string;
+@ApiPropertyOptional() @IsOptional() @IsString() eventCode?: string;
 }
