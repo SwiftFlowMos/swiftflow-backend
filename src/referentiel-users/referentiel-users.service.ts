@@ -92,6 +92,30 @@ export class ReferentielUsersService {
     `;
   }
 
+  async createUser(data: any) {
+  const bcrypt = require('bcrypt');
+  const passwordHash = await bcrypt.hash(data.password || 'SwiftFlow2026!', 10);
+  
+  await this.prisma.$executeRawUnsafe(`
+    INSERT INTO users (login, email, nom, role, "roleCode", "agenceCode", "passwordHash", "isActive", telephone)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, true, $8)
+  `,
+    data.login,
+    data.email,
+    data.nom,
+    data.roleCode || data.role,
+    data.roleCode || data.role,
+    data.agenceCode || null,
+    passwordHash,
+    data.telephone || null
+  );
+
+  const result = await this.prisma.$queryRaw`
+    SELECT id, login, nom, email, role, "roleCode", "agenceCode", "isActive"
+    FROM users WHERE login = ${data.login}
+  ` as any[];
+  return result[0];
+}
   async updateUser(id: string, data: any) {
     const fields = [
       'nom', 'email', 'agenceCode', 'roleCode', 'role',
