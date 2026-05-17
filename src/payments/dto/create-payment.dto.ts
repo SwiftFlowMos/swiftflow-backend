@@ -40,4 +40,5 @@ export class CreatePaymentDto {
   @ApiPropertyOptional() @IsOptional() @IsString() moduleCode?: string;
 @ApiPropertyOptional() @IsOptional() @IsString() typeCode?: string;
 @ApiPropertyOptional() @IsOptional() @IsString() eventCode?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() circuitId?: string;
 }
