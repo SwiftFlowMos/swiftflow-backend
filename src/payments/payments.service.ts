@@ -23,7 +23,7 @@ async create(dto: CreatePaymentDto, userId: string) {
   const reference = genRef(dto.categorie === 'COMMERCIAL' ? 'TRF' : 'TRF');
 
   // Récupérer le circuitId depuis l'événement si moduleCode/typeCode/eventCode fournis
-  let circuitId = dto.circuitId || null;
+  let circuitId: string | null = (dto as any).circuitId || null;
 if (!circuitId && dto.moduleCode && dto.typeCode && dto.eventCode) {
     console.log('Recherche circuit pour:', dto.moduleCode, dto.typeCode, dto.eventCode);
     const events = await this.prisma.$queryRawUnsafe(`
