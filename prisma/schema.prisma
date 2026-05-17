@@ -170,9 +170,9 @@ model WorkflowStep {
   type            String   // MANUEL, AUTO, SEMI_AUTO
   role            String?
   systemeTiers    String?
-  timeoutHeures   Int      @default(24)
-  timeoutMs       Int      @default(8000)
-  retryMax        Int      @default(1)
+  timeoutHeures Int?     @default(24)
+  timeoutMs     Int?     @default(8000)
+  retryMax      Int?     @default(1)
   timeoutAction   String   @default("ALERTE")
   fallbackAction  String   @default("MANUAL")
   isActive        Boolean  @default(true)
