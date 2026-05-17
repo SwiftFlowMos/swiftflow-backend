@@ -22,6 +22,24 @@ export class WorkflowService {
     });
   }
 
+  async getStepsByCircuit(circuitId: string, amount?: number) {
+  const steps = await this.prisma.$queryRaw`
+    SELECT * FROM workflow_steps 
+    WHERE "circuitId" = ${circuitId}::uuid
+    AND "isActive" = true
+    ORDER BY ordre ASC
+  ` as any[];
+
+  if (!amount) return steps;
+
+  return steps.filter(step => {
+    if (step.condAlways) return true;
+    if (step.condAmountMin > 0 && amount < step.condAmountMin) return false;
+    if (step.condAmountMax > 0 && amount > step.condAmountMax) return false;
+    return true;
+  });
+}
+
   async getAllSteps() {
     return this.prisma.$queryRaw`
       SELECT * FROM workflow_steps ORDER BY ordre ASC
