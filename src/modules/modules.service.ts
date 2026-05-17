@@ -54,27 +54,29 @@ async getTypesByModule(moduleCode: string) {
   }
 
   // ── CIRCUITS ──
-  async getCircuits(moduleCode?: string) {
-    if (moduleCode) {
-      return this.prisma.$queryRaw`
-        SELECT c.*,
-               COUNT(ws.id) as "nbEtapes"
-        FROM circuits c
-        LEFT JOIN workflow_steps ws ON ws."circuitId" = c.id
-        WHERE c."moduleCode" = ${moduleCode}
-        GROUP BY c.id
-        ORDER BY c."moduleCode" ASC, c."typeCode" ASC
-      `;
-    }
-    return this.prisma.$queryRaw`
-      SELECT c.*,
-             COUNT(ws.id) as "nbEtapes"
+async getCircuits(moduleCode?: string) {
+  if (moduleCode) {
+    return this.prisma.$queryRawUnsafe(`
+      SELECT c.id, c.code, c.nom, c."moduleCode", c."typeCode", c."evenementCode", 
+             c.description, c."isActive", c."createdAt",
+             CAST(COUNT(ws.id) AS INTEGER) as "nbEtapes"
       FROM circuits c
       LEFT JOIN workflow_steps ws ON ws."circuitId" = c.id
+      WHERE c."moduleCode" = $1
       GROUP BY c.id
       ORDER BY c."moduleCode" ASC, c."typeCode" ASC
-    `;
+    `, moduleCode);
   }
+  return this.prisma.$queryRawUnsafe(`
+    SELECT c.id, c.code, c.nom, c."moduleCode", c."typeCode", c."evenementCode",
+           c.description, c."isActive", c."createdAt",
+           CAST(COUNT(ws.id) AS INTEGER) as "nbEtapes"
+    FROM circuits c
+    LEFT JOIN workflow_steps ws ON ws."circuitId" = c.id
+    GROUP BY c.id
+    ORDER BY c."moduleCode" ASC, c."typeCode" ASC
+  `);
+}
 
   async createCircuit(data: any) {
     const code = `${data.moduleCode}_${data.typeCode}_${data.evenementCode}`.toUpperCase();
