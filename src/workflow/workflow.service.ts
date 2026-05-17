@@ -41,11 +41,11 @@ export class WorkflowService {
 }
 
 async getAllSteps() {
-  return this.prisma.$queryRaw`
+  return this.prisma.$queryRawUnsafe(`
     SELECT * FROM workflow_steps 
     WHERE "circuitId" IS NULL
     ORDER BY ordre ASC
-  `;
+  `);
 }
 
   async updateStep(id: string, data: any) {
