@@ -10,8 +10,13 @@ import { WorkflowService } from './workflow.service';
 export class WorkflowController {
   constructor(private workflowService: WorkflowService) {}
 
-  @Get('steps')
-  getSteps() { return this.workflowService.getAllSteps(); }
+@Get('steps')
+getSteps(@Query('circuitId') circuitId?: string) {
+  if (circuitId) {
+    return this.workflowService.getStepsByCircuit(circuitId);
+  }
+  return this.workflowService.getAllSteps();
+}
 
   @Patch('steps/:id')
   updateStep(@Param('id') id: string, @Body() data: any) {
