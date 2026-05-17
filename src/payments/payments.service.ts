@@ -19,13 +19,28 @@ export class PaymentsService {
   ) {}
 
   // ── CRÉER UN ORDRE ──
-  async create(dto: CreatePaymentDto, userId: string) {
-    const reference = genRef(dto.categorie === 'COMMERCIAL' ? 'TRF' : 'TRF');
+async create(dto: CreatePaymentDto, userId: string) {
+  const reference = genRef(dto.categorie === 'COMMERCIAL' ? 'TRF' : 'TRF');
 
-    const payment = await this.prisma.payment.create({
-      data: {
-        reference,
-        status: 'DRAFT',
+  // Récupérer le circuitId depuis l'événement si moduleCode/typeCode/eventCode fournis
+  let circuitId = dto.circuitId || null;
+  if (!circuitId && dto.moduleCode && dto.typeCode && dto.eventCode) {
+    const events = await this.prisma.$queryRaw`
+      SELECT "circuitId" FROM evenements
+      WHERE "moduleCode" = ${dto.moduleCode}
+        AND "typeCode"   = ${dto.typeCode}
+        AND code         = ${dto.eventCode}
+      LIMIT 1
+    ` as any[];
+    if (events.length > 0 && events[0].circuitId) {
+      circuitId = events[0].circuitId;
+    }
+  }
+
+  const payment = await this.prisma.payment.create({
+    data: {
+      reference,
+      status: 'DRAFT',
         // Donneur d'ordre
         agenceCode: dto.agenceCode,
         clientRef: dto.clientRef,
@@ -63,7 +78,8 @@ export class PaymentsService {
         details: dto.details,
         createdById: userId,
         currentStep: 0,
-        circuitId:    dto.circuitId || null,
+         circuitId: circuitId,
+    
       },
     });
 
