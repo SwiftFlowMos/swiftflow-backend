@@ -63,6 +63,7 @@ export class PaymentsService {
         details: dto.details,
         createdById: userId,
         currentStep: 0,
+        circuitId:    dto.circuitId || null,
       },
     });
 
@@ -81,7 +82,10 @@ async submit(paymentId: string, userId: string) {
   const user = await this.prisma.user.findUnique({ where: { id: userId } });
 
   // Récupérer les étapes actives du workflow
-  const steps = await this.workflow.getActiveSteps(payment.amount);
+  // Charger les étapes du circuit lié à l'ordre
+const steps = payment.circuitId
+  ? await this.workflow.getStepsByCircuit(payment.circuitId, payment.amount)
+  : await this.workflow.getActiveSteps(payment.amount);
   
   let currentStatus = 'DRAFT';
   let currentStep = 0;
