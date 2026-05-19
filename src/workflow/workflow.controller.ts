@@ -1,8 +1,7 @@
-import { Controller, Get, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { WorkflowService } from './workflow.service';
-import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
 
 @ApiTags('Workflow')
 @ApiBearerAuth()
