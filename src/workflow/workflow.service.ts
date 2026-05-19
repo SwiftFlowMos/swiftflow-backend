@@ -75,4 +75,29 @@ async updateStep(id: string, data: any) {
     data: updateData,
   });
 }
+
+  async createStep(data: any) {
+  return this.prisma.workflowStep.create({
+    data: {
+      ordre:          parseInt(data.ordre) || 1,
+      nom:            data.nom || 'Nouvelle etape',
+      type:           data.type || 'MANUEL',
+      role:           data.role || null,
+      systemeTiers:   data.systemeTiers || null,
+      timeoutHeures:  data.timeoutHeures ? parseInt(data.timeoutHeures) : null,
+      timeoutMs:      data.timeoutMs ? parseInt(data.timeoutMs) : null,
+      retryMax:       data.retryMax ? parseInt(data.retryMax) : null,
+      timeoutAction:  data.timeoutAction || 'ALERTE',
+      fallbackAction: data.fallbackAction || 'MANUAL',
+      isActive:       true,
+      condAlways:     true,
+      condAmountMin:  0,
+      condAmountMax:  0,
+      routingPositif: { action: 'NEXT' },
+      routingNegatif: { action: 'PREVIOUS' },
+      routingAlerte:  { action: 'ESCALADE' },
+      circuitId:      data.circuitId || null,
+    },
+  });
+}
 }
