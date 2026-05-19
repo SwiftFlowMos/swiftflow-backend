@@ -2,6 +2,7 @@ import { Controller, Get, Patch, Param, Body, Query, UseGuards } from '@nestjs/c
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { WorkflowService } from './workflow.service';
+import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
 
 @ApiTags('Workflow')
 @ApiBearerAuth()
@@ -22,4 +23,9 @@ getSteps(@Query('circuitId') circuitId?: string) {
   updateStep(@Param('id') id: string, @Body() data: any) {
     return this.workflowService.updateStep(id, data);
   }
+
+  @Post('steps')
+createStep(@Body() data: any) {
+  return this.workflowService.createStep(data);
+}
 }
