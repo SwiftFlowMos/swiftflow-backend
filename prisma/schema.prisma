@@ -185,6 +185,7 @@ model WorkflowStep {
   routingNegatif  Json     @default("{\"action\":\"PREVIOUS\"}")
   routingAlerte   Json     @default("{\"action\":\"ESCALADE\"}")
   createdAt       DateTime @default(now())
+circuitId     String?
 
   @@map("workflow_steps")
 }
