@@ -8,6 +8,7 @@ import { BankConfigModule } from './bank-config/bank-config.module';
 import { SystemAdaptersModule } from './system-adapters/system-adapters.module';
 import { ReferentielUsersModule } from './referentiel-users/referentiel-users.module';
 import { ModulesModule } from './modules/modules.module';
+import { SchedulerModule } from './scheduler/scheduler.module';
 import { PrismaService } from './prisma.service';
 import { HealthController } from './health.controller';
 
@@ -22,6 +23,7 @@ import { HealthController } from './health.controller';
     SystemAdaptersModule,
     ReferentielUsersModule,
     ModulesModule,
+    SchedulerModule,
   ],
   controllers: [HealthController],
   providers: [PrismaService],
