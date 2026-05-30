@@ -28,7 +28,7 @@
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.0",
     "@nestjs/schedule": "^3.0.0",
-    "cron": "^3.0.0",
+    "cron": "^3.0.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",
