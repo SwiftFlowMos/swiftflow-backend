@@ -204,7 +204,32 @@ if (action === 'PREVIOUS') {
     return this.findOne(paymentId);
   }
 }
+if (action === 'ESCALADE') {
+  // Récupérer le rôle supérieur
+  const roleCode = step.role?.toUpperCase().replace(/ /g, '_') || 'VALIDATION';
+  const roles = await this.prisma.$queryRawUnsafe(`
+    SELECT "roleSuperieurCode" FROM roles WHERE code = $1
+  `, roleCode) as any[];
+  
+  const roleSuperieur = roles.length > 0 && roles[0].roleSuperieurCode
+    ? roles[0].roleSuperieurCode
+    : roleCode;
 
+  currentStatus = `PENDING_${roleSuperieur}`;
+  currentStep = step.ordre;
+
+  await this.prisma.payment.update({
+    where: { id: paymentId },
+    data: { status: currentStatus, currentStep },
+  });
+
+  await this.addAuditLog(
+    paymentId, 'SYSTEM', `Systeme ${adapterCode}`,
+    'ESCALATED', 'ALERTE', 'DRAFT', currentStatus,
+    `Escalade automatique vers ${roleSuperieur} : ${result.message}`
+  );
+  return this.findOne(paymentId);
+}
 if (action === 'NEXT') {
   currentStatus = 'PENDING_NEXT';
   continue;
