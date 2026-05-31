@@ -439,4 +439,111 @@ async remove(paymentId: string, userId: string) {
 
   return { success: true, message: 'Ordre supprime avec succes' };
 }
+
+  async force(paymentId: string, userId: string, motif: string, confirmationCode?: string) {
+  // 1. Vérifier que l'ordre est bien BLOCKED
+  const payment = await this.findOne(paymentId);
+  if (payment.status !== 'BLOCKED') {
+    throw new ForbiddenException('Seul un ordre BLOCKED peut être forcé');
+  }
+
+  // 2. Récupérer l'utilisateur et son rôle
+  const user = await this.prisma.user.findUnique({ where: { id: userId } });
+  const roleCode = user.role;
+
+  // 3. Récupérer le système qui a bloqué depuis audit_logs
+  const blockLogs = await this.prisma.$queryRawUnsafe(`
+    SELECT comment FROM audit_logs
+    WHERE "paymentId" = $1::uuid
+    AND action LIKE 'AUTO_STEP_%_NEGATIF'
+    ORDER BY "createdAt" DESC
+    LIMIT 1
+  `, paymentId) as any[];
+
+  // Extraire le code système depuis le commentaire de l'audit
+  let systemCode = 'PROVISION'; // défaut
+  if (blockLogs.length > 0) {
+    const match = blockLogs[0].comment?.match(/Systeme (\w+)/);
+    if (match) systemCode = match[1];
+  }
+
+  // 4. Vérifier l'habilitation de forçage
+  const forceHab = await this.prisma.$queryRawUnsafe(`
+    SELECT * FROM force_habilitations
+    WHERE "roleCode" = $1
+    AND "systemAdapterCode" = $2
+    LIMIT 1
+  `, roleCode, systemCode) as any[];
+
+  if (forceHab.length === 0) {
+    throw new ForbiddenException(`Le rôle ${roleCode} n'est pas habilité à forcer les blocages ${systemCode}`);
+  }
+
+  const hab = forceHab[0];
+
+  // 5. Vérifier le montant maximum
+  if (hab.montantMax > 0 && payment.amount > hab.montantMax) {
+    throw new ForbiddenException(`Montant ${payment.amount} dépasse la limite de forçage autorisée (${hab.montantMax})`);
+  }
+
+  // 6. Vérifier le quota journalier
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const forcesToday = await this.prisma.$queryRawUnsafe(`
+    SELECT COUNT(*) as count FROM audit_logs
+    WHERE "actorId" = $1::uuid
+    AND action = 'FORCED_OVERRIDE'
+    AND "createdAt" >= $2
+  `, userId, today) as any[];
+
+  const forceCount = parseInt(forcesToday[0].count) || 0;
+  if (forceCount >= hab.quotaJournalier) {
+    throw new ForbiddenException(`Quota journalier de forçage atteint (${hab.quotaJournalier}/jour)`);
+  }
+
+  // 7. Vérifier double validation si requise
+  if (hab.doubleValidation && !confirmationCode) {
+    throw new ForbiddenException('Double validation requise — veuillez fournir un code de confirmation');
+  }
+
+  // 8. Déterminer l'étape suivante dans le circuit
+  const steps = payment.circuitId
+    ? await this.workflow.getStepsByCircuit(payment.circuitId, payment.amount)
+    : await this.workflow.getActiveSteps(payment.amount);
+
+  const nextStep = steps.find(s => s.isActive);
+  let newStatus = 'PENDING_CONFORMITE'; // défaut
+
+  if (nextStep) {
+    if (nextStep.type === 'MANUEL' && nextStep.role) {
+      const roleKey = nextStep.role.toUpperCase().replace(/ /g, '_');
+      newStatus = `PENDING_${roleKey}`;
+    } else if (nextStep.type === 'AUTO') {
+      // Si l'étape suivante est AUTO, on la saute et on prend la première MANUEL
+      const manuelStep = steps.find(s => s.type === 'MANUEL' && s.isActive);
+      if (manuelStep) {
+        const roleKey = manuelStep.role.toUpperCase().replace(/ /g, '_');
+        newStatus = `PENDING_${roleKey}`;
+      } else {
+        newStatus = 'APPROVED';
+      }
+    }
+  }
+
+  // 9. Mettre à jour le statut
+  await this.prisma.payment.update({
+    where: { id: paymentId },
+    data: { status: newStatus, currentStep: nextStep?.ordre || 1 },
+  });
+
+  // 10. Enregistrer dans la piste d'audit
+  await this.addAuditLog(
+    paymentId, userId, user.nom,
+    'FORCED_OVERRIDE', 'POSITIF',
+    'BLOCKED', newStatus,
+    `Forçage autorisé par ${user.nom} (${roleCode}) — Système: ${systemCode} — Motif: ${motif}`
+  );
+
+  return this.findOne(paymentId);
+}
 }
