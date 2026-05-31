@@ -83,4 +83,13 @@ update(@Param('id') id: string, @Body() dto: CreatePaymentDto, @Request() req) {
 remove(@Param('id') id: string, @Request() req) {
   return this.paymentsService.remove(id, req.user.id);
 }
+
+  @Post(':id/force')
+force(
+  @Param('id') id: string,
+  @Body() body: { motif: string; confirmationCode?: string },
+  @Request() req,
+) {
+  return this.paymentsService.force(id, req.user.userId, body.motif, body.confirmationCode);
+}
 }
