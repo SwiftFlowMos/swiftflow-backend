@@ -90,6 +90,6 @@ force(
   @Body() body: { motif: string; confirmationCode?: string },
   @Request() req,
 ) {
-  return this.paymentsService.force(id, req.user.userId, body.motif, body.confirmationCode);
+  return this.paymentsService.force(id, req.user.id, body.motif, body.confirmationCode);
 }
 }
