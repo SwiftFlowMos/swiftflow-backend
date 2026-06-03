@@ -448,7 +448,11 @@ async remove(paymentId: string, userId: string) {
   }
 
   // 2. Récupérer l'utilisateur et son rôle
-  const user = await this.prisma.user.findUnique({ where: { id: userId } });
+  const users = await this.prisma.$queryRawUnsafe(`
+  SELECT id, nom, role FROM users WHERE id = $1::uuid LIMIT 1
+`, userId) as any[];
+const user = users[0];
+if (!user) throw new ForbiddenException('Utilisateur non trouvé');
   const roleCode = user.role;
 
   // 3. Récupérer le système qui a bloqué depuis audit_logs
